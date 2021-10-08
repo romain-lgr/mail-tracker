@@ -29,7 +29,7 @@ class MailTrackerServiceProvider extends ServiceProvider
     {
         // Publish pieces
         $this->publishConfig();
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        //$this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->publishViews();
 
         // Register console commands
