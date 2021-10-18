@@ -4,8 +4,8 @@ namespace jdavidbakr\MailTracker;
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
-use jdavidbakr\MailTracker\Model\SentEmail;
 use jdavidbakr\MailTracker\Events\EmailSentEvent;
+use jdavidbakr\MailTracker\Model\SentEmail;
 use jdavidbakr\MailTracker\Model\SentEmailUrlClicked;
 
 class MailTracker implements \Swift_Events_SendListener
@@ -64,13 +64,19 @@ class MailTracker implements \Swift_Events_SendListener
     protected function injectTrackingPixel($html, $hash)
     {
         // Append the tracking url
-        $tracking_pixel = '<img border=0 width=1 alt="" height=1 src="'.route('mailTracker_t', [$hash]).'" />';
+        $tenant = tenant();
+        if ($tenant) {
+            $img_route = $tenant->domains[0]->domain . '/email/t/' . $hash;
+            $tracking_pixel = '<img border=0 width=1 alt="" height=1 src="' . $img_route . '" />';
+        } else {
+            $tracking_pixel = '<img border=0 width=1 alt="" height=1 src="' . route('mailTracker_t', [$hash]) . '" />';
+        }
 
         $linebreak = app(Str::class)->random(32);
         $html = str_replace("\n", $linebreak, $html);
 
         if (preg_match("/^(.*<body[^>]*>)(.*)$/", $html, $matches)) {
-            $html = $matches[1].$matches[2].$tracking_pixel;
+            $html = $matches[1] . $matches[2] . $tracking_pixel;
         } else {
             $html = $html . $tracking_pixel;
         }
@@ -100,11 +106,11 @@ class MailTracker implements \Swift_Events_SendListener
             $url = str_replace('&amp;', '&', $matches[2]);
         }
 
-        return $matches[1].route(
+        return $matches[1] . route(
             'mailTracker_n',
             [
                 'l' => $url,
-                'h' => $this->hash
+                'h' => $this->hash,
             ]
         );
     }
@@ -189,7 +195,7 @@ class MailTracker implements \Swift_Events_SendListener
     {
         if (config('mail-tracker.expire-days') > 0) {
             $emails = SentEmail::where('created_at', '<', \Carbon\Carbon::now()
-                ->subDays(config('mail-tracker.expire-days')))
+                    ->subDays(config('mail-tracker.expire-days')))
                 ->select('id')
                 ->get();
             SentEmailUrlClicked::whereIn('sent_email_id', $emails->pluck('id'))->delete();
